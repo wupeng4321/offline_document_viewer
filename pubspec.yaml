@@ -14,8 +14,10 @@ topics:
   - offline
 
 environment:
-  sdk: ^3.9.0
-  flutter: ">=3.24.0"
+  # Set by pdfrx, the highest floor among the dependencies. Declaring anything
+  # lower would promise support that cannot resolve.
+  sdk: ^3.10.0
+  flutter: ">=3.41.0"
 
 dependencies:
   crypto: ^3.0.7

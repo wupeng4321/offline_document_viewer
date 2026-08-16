@@ -94,8 +94,13 @@ fonts travel with the package.
 
 ### iOS
 
-iOS 12 or higher. No `Info.plist` entries are required — the package requests
-no permissions and opens no network connections.
+iOS 12 or higher — the floor set by the bundled PDFium and WebView plugins. No
+`Info.plist` entries are required: the package requests no permissions and
+opens no network connections.
+
+The bundled `example/` app targets iOS 14, because the file picker it uses to
+demonstrate the package needs it. That is the example's requirement, not the
+package's.
 
 ## Usage
 

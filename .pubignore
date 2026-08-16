@@ -1,0 +1,30 @@
+# What consumers do not need in their pub cache.
+#
+# A `.pubignore` replaces `.gitignore` for publishing, so build artefacts have
+# to be listed here explicitly — otherwise the example's build output alone
+# adds tens of megabytes to every download.
+
+# Build artefacts
+build/
+.dart_tool/
+example/build/
+example/.dart_tool/
+example/ios/Pods/
+example/ios/.symlinks/
+example/ios/Flutter/ephemeral/
+example/android/.gradle/
+example/android/local.properties
+*.iml
+
+# Fixtures are for local and CI verification: they add weight for every
+# consumer, and some are third-party documents that are not ours to
+# redistribute.
+test/fixtures/
+
+# README screenshots are served from GitHub by absolute URL, so shipping them
+# would only add weight to every download.
+doc/screenshots/
+
+# Local tooling output
+*.log
+.DS_Store

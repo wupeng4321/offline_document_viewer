@@ -76,6 +76,21 @@ varken tarayıcı önce 1. sütunu doldurup ikinciyi boş bırakıyor), ve sarma
 içindeki div'lerde `width: auto` + `display: block` (PPTXjs her paragrafa sabit
 `width` ve `display:flex` veriyor; ikisi de sütuna bölünmeyi engelliyor).
 
+## 6. Paket-mutlak ilişki hedefleri çözümlenemiyordu
+
+**Belirti:** `/ppt/slideLayouts/slideLayout1.xml` gibi paket-mutlak ilişki
+hedefleri kullanan sunumlar `Object.keys(null)` ile çöküyor ve hiç slayt
+göstermiyordu.
+
+**Kök neden:** PPTXjs yalnızca `../slideLayouts/...` biçimini bekliyor ve ilk
+`../` parçasını `ppt/` ile değiştiriyordu. Baştaki `/` JSZip'e aynen geçince
+dosya bulunamıyordu; birden fazla `../` içeren geçerli hedefler de yanlış
+çözümleniyordu.
+
+**Yama:** Tüm slayt, düzen, master, tema ve diyagram ilişkileri, kaynak parçanın
+dizini temel alınarak çözümleniyor. Baştaki `/` kaldırılıyor; `.` ve `..`
+parçaları normalize ediliyor.
+
 **Bilinen bedel:** Çok sütunlu bir kutuda madde imi varsa hizası bozulabilir —
 `display:flex` madde imi hizalaması için kullanılıyor.
 

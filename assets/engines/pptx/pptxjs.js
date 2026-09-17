@@ -504,6 +504,40 @@
             };
             return rtenObj;
         }
+        /* PATCH: OOXML relationship targets may be package-absolute
+           (/ppt/...) or relative to the owning part (../slideLayouts/...).
+           PPTXjs only handled the latter and passed leading-slash paths to
+           JSZip, which returns null. Normalize both forms before lookup. */
+        function resolveRelationshipTarget(target, baseDirectory) {
+            if (!target) {
+                return "";
+            }
+
+            var normalizedTarget = String(target).replace(/\\/g, "/");
+            if (normalizedTarget.charAt(0) == "/") {
+                return normalizedTarget.replace(/^\/+/, "");
+            }
+
+            var result = [];
+            var parts = (baseDirectory + normalizedTarget).split("/");
+            for (var i = 0; i < parts.length; i++) {
+                if (!parts[i] || parts[i] == ".") {
+                    continue;
+                }
+                if (parts[i] == "..") {
+                    result.pop();
+                } else {
+                    result.push(parts[i]);
+                }
+            }
+            return result.join("/");
+        }
+
+        function directoryOf(filename) {
+            var separator = filename.lastIndexOf("/");
+            return separator == -1 ? "" : filename.substring(0, separator + 1);
+        }
+
         function processSingleSlide(zip, sldFileName, index, slideSize) {
             /*
             self.postMessage({
@@ -526,13 +560,13 @@
                 for (var i = 0; i < RelationshipArray.length; i++) {
                     switch (RelationshipArray[i]["attrs"]["Type"]) {
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout":
-                            layoutFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            layoutFilename = resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slides/");
                             break;
                         case "http://schemas.microsoft.com/office/2007/relationships/diagramDrawing":
-                            diagramFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            diagramFilename = resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slides/");
                             slideResObj[RelationshipArray[i]["attrs"]["Id"]] = {
                                 "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slides/")
                             };
                             break;
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide":
@@ -542,12 +576,12 @@
                         default:
                             slideResObj[RelationshipArray[i]["attrs"]["Id"]] = {
                                 "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slides/")
                             };
                     }
                 }
             } else {
-                layoutFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+                layoutFilename = resolveRelationshipTarget(RelationshipArray["attrs"]["Target"], "ppt/slides/");
             }
             //console.log(slideResObj);
             // Open slideLayoutXX.xml
@@ -572,17 +606,17 @@
                 for (var i = 0; i < RelationshipArray.length; i++) {
                     switch (RelationshipArray[i]["attrs"]["Type"]) {
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster":
-                            masterFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            masterFilename = resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slideLayouts/");
                             break;
                         default:
                             layoutResObj[RelationshipArray[i]["attrs"]["Id"]] = {
                                 "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slideLayouts/")
                             };
                     }
                 }
             } else {
-                masterFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+                masterFilename = resolveRelationshipTarget(RelationshipArray["attrs"]["Target"], "ppt/slideLayouts/");
             }
             // Open slideMasterXX.xml
             var slideMasterContent = readXmlFile(zip, masterFilename);
@@ -600,17 +634,17 @@
                 for (var i = 0; i < RelationshipArray.length; i++) {
                     switch (RelationshipArray[i]["attrs"]["Type"]) {
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme":
-                            themeFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            themeFilename = resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slideMasters/");
                             break;
                         default:
                             masterResObj[RelationshipArray[i]["attrs"]["Id"]] = {
                                 "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(RelationshipArray[i]["attrs"]["Target"], "ppt/slideMasters/")
                             };
                     }
                 }
             } else {
-                themeFilename = RelationshipArray["attrs"]["Target"].replace("../", "ppt/");
+                themeFilename = resolveRelationshipTarget(RelationshipArray["attrs"]["Target"], "ppt/slideMasters/");
             }
             //console.log(themeFilename)
             //Load Theme file
@@ -629,14 +663,14 @@
                             for (var i = 0; i < relationshipArray.length; i++) {
                                 themeResObj[relationshipArray[i]["attrs"]["Id"]] = {
                                     "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                    "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                    "target": resolveRelationshipTarget(relationshipArray[i]["attrs"]["Target"], directoryOf(themeFilename))
                                 };
                             }
                         } else {
                             //console.log("theme relationshipArray : ", relationshipArray)
                             themeResObj[relationshipArray["attrs"]["Id"]] = {
                                 "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(relationshipArray["attrs"]["Target"], directoryOf(themeFilename))
                             };
                         }
                     }
@@ -664,14 +698,14 @@
                         for (var i = 0; i < relationshipArray.length; i++) {
                             diagramResObj[relationshipArray[i]["attrs"]["Id"]] = {
                                 "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                                "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                "target": resolveRelationshipTarget(relationshipArray[i]["attrs"]["Target"], directoryOf(diagramFilename))
                             };
                         }
                     } else {
                         //console.log("theme relationshipArray : ", relationshipArray)
                         diagramResObj[relationshipArray["attrs"]["Id"]] = {
                             "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
-                            "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                            "target": resolveRelationshipTarget(relationshipArray["attrs"]["Target"], directoryOf(diagramFilename))
                         };
                     }
                 }

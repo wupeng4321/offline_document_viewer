@@ -43,6 +43,22 @@ void main() {
     }
   });
 
+  test('PPTX relationships support absolute and relative targets', () {
+    final String source = File(
+      'assets/engines/pptx/pptxjs.js',
+    ).readAsStringSync();
+
+    expect(source, contains('function resolveRelationshipTarget'));
+    expect(source, contains('normalizedTarget.replace(/^\\/+/, "")'));
+    expect(source, contains('directoryOf(themeFilename)'));
+    expect(source, contains('directoryOf(diagramFilename)'));
+    expect(
+      source,
+      isNot(contains('.replace("../", "ppt/")')),
+      reason: 'single-segment replacement breaks package-absolute targets',
+    );
+  });
+
   group('shells declare the CSP placeholder and load their logic externally',
       () {
     final List<File> shells = Directory('assets/viewers')

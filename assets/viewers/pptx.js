@@ -56,6 +56,10 @@
   function fitToWidth(slides) {
     const available = document.documentElement.clientWidth;
     slides.forEach(function (slide) {
+      slide.style.transform = '';
+      slide.style.marginLeft = '';
+      slide.style.marginRight = '';
+      slide.style.marginBottom = '';
       const width = slide.offsetWidth;
       const height = slide.offsetHeight;
       if (!width || width <= available) {
@@ -125,6 +129,10 @@
       first.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     Bridge.send('searchResult', { hits: hits });
+  });
+
+  window.addEventListener('resize', function () {
+    fitToWidth(stage.querySelectorAll('.slide'));
   });
 
   Bridge.start(render);

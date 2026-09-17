@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../workspace/workspace.dart';
@@ -44,8 +44,8 @@ abstract final class ViewerBridge {
       allowFileAccessFromFileURLs: false,
       allowUniversalAccessFromFileURLs: false,
       mediaPlaybackRequiresUserGesture: true,
-      // The document surface stays white in both themes; the host UI carries the theme.
-      transparentBackground: false,
+      // Let the white Flutter backing show through before iOS paints its first frame.
+      transparentBackground: defaultTargetPlatform == TargetPlatform.iOS,
 
       // — reading experience —
       supportZoom: true,
@@ -146,6 +146,8 @@ abstract final class ViewerBridge {
     final bool allowed = Platform.isAndroid
         ? url.host == _androidDomain
         : url.scheme == 'file';
-    return allowed ? NavigationActionPolicy.ALLOW : NavigationActionPolicy.CANCEL;
+    return allowed
+        ? NavigationActionPolicy.ALLOW
+        : NavigationActionPolicy.CANCEL;
   }
 }

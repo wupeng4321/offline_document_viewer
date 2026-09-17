@@ -13,6 +13,13 @@
      edilemez. Ölçek düzeni bozmuyor, yalnızca küçültüyor; kullanıcı
      yakınlaştırma jestiyle büyütebiliyor. */
   function fitToWidth() {
+    const wrapper = stage.querySelector('.docx-wrapper');
+    if (!wrapper) {
+      return;
+    }
+    wrapper.style.transform = '';
+    wrapper.style.height = '';
+    wrapper.style.width = '';
     const page = stage.querySelector('.docx-wrapper > section');
     if (!page) {
       return;
@@ -26,7 +33,6 @@
     if (scale >= 1) {
       return;
     }
-    const wrapper = stage.querySelector('.docx-wrapper');
     wrapper.style.transformOrigin = 'top left';
     wrapper.style.transform = 'scale(' + scale + ')';
     // Ölçeklenen eleman düzen yüksekliğini korur; kapsayıcıyı da küçültüyoruz
@@ -137,6 +143,8 @@
     }
     Bridge.send('searchResult', { hits: hits });
   });
+
+  window.addEventListener('resize', fitToWidth);
 
   Bridge.start(render);
 })();

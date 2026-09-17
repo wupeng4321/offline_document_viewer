@@ -61,7 +61,7 @@ class DocumentView extends StatefulWidget {
   /// and [DocumentViewController.failure], where you can render it with your
   /// own wording and translations.
   final Widget Function(BuildContext context, DocumentFailure failure)?
-      errorBuilder;
+  errorBuilder;
 
   /// Colour behind the document.
   ///
@@ -183,8 +183,10 @@ class _DocumentViewState extends State<DocumentView> {
     }
 
     try {
-      final Workspace workspace = await const WorkspaceBuilder()
-          .build(bytes: bytes, format: ok.format);
+      final Workspace workspace = await const WorkspaceBuilder().build(
+        bytes: bytes,
+        format: ok.format,
+      );
       if (!mounted) {
         return;
       }
@@ -238,10 +240,11 @@ class _DocumentViewState extends State<DocumentView> {
         setState(() => _rendered = true);
         _reportReady(
           unitCount: (message.payload['units'] as int?) ?? 0,
-          outline: ((message.payload['outline'] as List<Object?>?) ??
-                  const <Object?>[])
-              .whereType<String>()
-              .toList(),
+          outline:
+              ((message.payload['outline'] as List<Object?>?) ??
+                      const <Object?>[])
+                  .whereType<String>()
+                  .toList(),
           truncated: (message.payload['truncated'] as bool?) ?? false,
         );
 
@@ -315,26 +318,10 @@ class _DocumentViewState extends State<DocumentView> {
       return _placeholder(context);
     }
 
-    // While the engine works the placeholder covers the surface, but the
-    // WebView still has to be laid out so it can render. It is parked at 1×1
-    // rather than stacked underneath: on iOS a platform view placed below
-    // another layer fails to composite and stays black.
-    if (!_rendered) {
-      return Stack(
-        children: <Widget>[
-          Positioned.fill(child: _placeholder(context)),
-          Positioned(
-            left: 0,
-            top: 0,
-            width: 1,
-            height: 1,
-            child: _buildWebView(workspace),
-          ),
-        ],
-      );
-    }
-
-    return _buildWebView(workspace);
+    return DocumentRenderSurface(
+      backgroundColor: widget.backgroundColor,
+      webView: _buildWebView(workspace),
+    );
   }
 
   Widget _placeholder(BuildContext context) =>
@@ -342,35 +329,48 @@ class _DocumentViewState extends State<DocumentView> {
       ColoredBox(color: widget.backgroundColor);
 
   Widget _buildWebView(Workspace workspace) {
-    return ColoredBox(
-      color: widget.backgroundColor,
-      child: SizedBox.expand(
-        child: InAppWebView(
-          initialSettings: ViewerBridge.settingsFor(workspace),
-          onWebViewCreated: (InAppWebViewController controller) {
-            _webView = controller;
-            controller.addJavaScriptHandler(
-              handlerName: ViewerBridge.channelName,
-              callback: _onBridgeMessage,
-            );
-            unawaited(ViewerBridge.load(controller, workspace));
-          },
-          shouldOverrideUrlLoading: (
-            InAppWebViewController _,
-            NavigationAction action,
-          ) async =>
+    return InAppWebView(
+      initialSettings: ViewerBridge.settingsFor(workspace),
+      onWebViewCreated: (InAppWebViewController controller) {
+        _webView = controller;
+        controller.addJavaScriptHandler(
+          handlerName: ViewerBridge.channelName,
+          callback: _onBridgeMessage,
+        );
+        unawaited(ViewerBridge.load(controller, workspace));
+      },
+      shouldOverrideUrlLoading:
+          (InAppWebViewController _, NavigationAction action) async =>
               ViewerBridge.decidePolicy(action.request.url),
-          // On Android an unhandled renderer-process death takes the whole
-          // application with it. Intercepting turns it into a recoverable
-          // failure instead.
-          onRenderProcessGone: (
-            InAppWebViewController _,
-            RenderProcessGoneDetail detail,
-          ) async {
+      // On Android an unhandled renderer-process death takes the whole
+      // application with it. Intercepting turns it into a recoverable
+      // failure instead.
+      onRenderProcessGone:
+          (InAppWebViewController _, RenderProcessGoneDetail detail) async {
             _fail(const RendererFailure(timedOut: false));
           },
-        ),
-      ),
     );
   }
+}
+
+/// Gives the native WebView its final viewport before document layout begins.
+class DocumentRenderSurface extends StatelessWidget {
+  /// Creates a full-size document surface with an opaque background.
+  const DocumentRenderSurface({
+    required this.backgroundColor,
+    required this.webView,
+    super.key,
+  });
+
+  /// Color behind the native view before its first frame is drawn.
+  final Color backgroundColor;
+
+  /// The WebView retained when the document finishes rendering.
+  final Widget webView;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: backgroundColor,
+    child: SizedBox.expand(child: webView),
+  );
 }

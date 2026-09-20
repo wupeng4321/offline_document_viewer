@@ -75,7 +75,9 @@ void main() {
   group('RTF', () {
     test('keeps paragraphs, emphasis and alignment', () {
       final String html = RtfConverter.toHtml(
-        _rtf(r'{\rtf1\ansi \pard\qc\b Title\b0\par \pard Body \i word\i0 .\par}'),
+        _rtf(
+          r'{\rtf1\ansi \pard\qc\b Title\b0\par \pard Body \i word\i0 .\par}',
+        ),
       );
       expect(html, contains('text-align:center'));
       expect(html, contains('<strong>Title</strong>'));
@@ -83,8 +85,9 @@ void main() {
     });
 
     test('coalesces a run instead of wrapping every character', () {
-      final String html =
-          RtfConverter.toHtml(_rtf(r'{\rtf1\ansi \b bold text\b0\par}'));
+      final String html = RtfConverter.toHtml(
+        _rtf(r'{\rtf1\ansi \b bold text\b0\par}'),
+      );
       expect(html, contains('<strong>bold text</strong>'));
       // The naive implementation produced one wrapper per letter.
       expect(html.split('<strong>').length - 1, 1);
@@ -103,15 +106,18 @@ void main() {
     });
 
     test('decodes unicode escapes and skips their fallback character', () {
-      final String html =
-          RtfConverter.toHtml(_rtf(r'{\rtf1\ansi \u351?rnek\par}'));
+      final String html = RtfConverter.toHtml(
+        _rtf(r'{\rtf1\ansi \u351?rnek\par}'),
+      );
       expect(html, contains('şrnek'));
       expect(html, isNot(contains('?')));
     });
 
     test('drops metadata destinations', () {
       final String html = RtfConverter.toHtml(
-        _rtf(r'{\rtf1\ansi{\fonttbl{\f0 Calibri;}}{\info{\author Someone}}Body\par}'),
+        _rtf(
+          r'{\rtf1\ansi{\fonttbl{\f0 Calibri;}}{\info{\author Someone}}Body\par}',
+        ),
       );
       expect(html, contains('Body'));
       expect(html, isNot(contains('Calibri')));
@@ -131,8 +137,9 @@ void main() {
 
     test('treats a backslash-newline as a paragraph mark', () {
       // Cocoa and TextEdit write breaks this way instead of `\par`.
-      final String html =
-          RtfConverter.toHtml(_rtf('{\\rtf1\\ansi First\\\nSecond\\\n}'));
+      final String html = RtfConverter.toHtml(
+        _rtf('{\\rtf1\\ansi First\\\nSecond\\\n}'),
+      );
       expect(html.split('<p').length - 1, 2);
     });
 
@@ -178,8 +185,9 @@ void main() {
 
   group('legacy text extraction', () {
     test('pulls paragraphs out of a real .doc', () {
-      final List<String> paragraphs =
-          LegacyTextExtractor.extractDoc(_fixture('sample.doc'));
+      final List<String> paragraphs = LegacyTextExtractor.extractDoc(
+        _fixture('sample.doc'),
+      );
       expect(paragraphs, isNotEmpty);
       final String text = paragraphs.join(' ');
       expect(text, contains('Madde bir'));
@@ -190,8 +198,9 @@ void main() {
     });
 
     test('reads slide text from a .ppt, skipping master and notes', () {
-      final List<String> lines =
-          LegacyTextExtractor.extractPpt(_fixture('sample.ppt'));
+      final List<String> lines = LegacyTextExtractor.extractPpt(
+        _fixture('sample.ppt'),
+      );
       expect(lines, isNotEmpty);
       // Master placeholders and PowerPoint's internal version stamps are not
       // content and must not leak into the output.
@@ -204,10 +213,7 @@ void main() {
     });
 
     test('returns nothing rather than throwing on a non-doc', () {
-      expect(
-        LegacyTextExtractor.extractDoc(_fixture('sample.xlsx')),
-        isEmpty,
-      );
+      expect(LegacyTextExtractor.extractDoc(_fixture('sample.xlsx')), isEmpty);
       expect(LegacyTextExtractor.extractPpt(Uint8List(600)), isEmpty);
     });
   });

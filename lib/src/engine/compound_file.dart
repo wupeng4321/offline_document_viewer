@@ -9,8 +9,16 @@ import 'dart:typed_data';
 /// stream reading, including the mini-FAT used for streams under 4 KB. There
 /// is no support for writing, transactions or storages beyond enumeration.
 class CompoundFile {
-  CompoundFile._(this._bytes, this._view, this._sectorSize, this._miniCutoff,
-      this._fat, this._miniFat, this._directory, this._miniStream);
+  CompoundFile._(
+    this._bytes,
+    this._view,
+    this._sectorSize,
+    this._miniCutoff,
+    this._fat,
+    this._miniFat,
+    this._directory,
+    this._miniStream,
+  );
 
   final Uint8List _bytes;
   final ByteData _view;

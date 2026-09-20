@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:offline_document_viewer/src/document_view.dart';
 
 void main() {
-  testWidgets('document WebView starts full size and stays mounted', (
+  testWidgets('document WebView stays mounted behind a loading cover', (
     WidgetTester tester,
   ) async {
     final GlobalKey webViewKey = GlobalKey();
+    const Key coverKey = ValueKey<String>('loading-cover');
+    bool ready = false;
     Widget surface() => Directionality(
       textDirection: TextDirection.ltr,
       child: Center(
@@ -16,6 +18,11 @@ void main() {
           child: DocumentRenderSurface(
             backgroundColor: const Color(0xFFFFFFFF),
             webView: _TrackedView(key: webViewKey),
+            ready: ready,
+            loadingCover: const ColoredBox(
+              key: coverKey,
+              color: Color(0xFFFFFFFF),
+            ),
           ),
         ),
       ),
@@ -26,8 +33,11 @@ void main() {
       find.byKey(webViewKey),
     );
     expect(tester.getSize(find.byKey(webViewKey)), const Size(300, 400));
+    expect(find.byKey(coverKey), findsOneWidget);
 
+    ready = true;
     await tester.pumpWidget(surface());
+    expect(find.byKey(coverKey), findsNothing);
     expect(tester.state(find.byKey(webViewKey)), same(initialState));
     expect(tester.getSize(find.byKey(webViewKey)), const Size(300, 400));
   });

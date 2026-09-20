@@ -340,6 +340,8 @@ class _DocumentViewState extends State<DocumentView> {
     return DocumentRenderSurface(
       backgroundColor: widget.backgroundColor,
       webView: _buildWebView(workspace),
+      ready: _rendered,
+      loadingCover: _placeholder(context),
     );
   }
 
@@ -379,6 +381,8 @@ class DocumentRenderSurface extends StatelessWidget {
   const DocumentRenderSurface({
     required this.backgroundColor,
     required this.webView,
+    required this.ready,
+    required this.loadingCover,
     super.key,
   });
 
@@ -388,9 +392,21 @@ class DocumentRenderSurface extends StatelessWidget {
   /// The WebView retained when the document finishes rendering.
   final Widget webView;
 
+  /// Whether the WebView has reported its final rendered layout.
+  final bool ready;
+
+  /// Opaque surface that prevents intermediate WebView frames from showing.
+  final Widget loadingCover;
+
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: backgroundColor,
-    child: SizedBox.expand(child: webView),
+    child: Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        webView,
+        if (!ready) AbsorbPointer(child: loadingCover),
+      ],
+    ),
   );
 }

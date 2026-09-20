@@ -39,13 +39,18 @@
           const text = (slide.textContent || '').trim().split('\n')[0];
           outline.push(text ? text.slice(0, 60) : 'Slayt ' + (index + 1));
         });
-        Bridge.send('rendered', {
-          ms: Math.round(performance.now() - startedAt),
-          units: slides.length,
-          styled: true,
-          outline: outline
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            stage.style.visibility = 'visible';
+            Bridge.send('rendered', {
+              ms: Math.round(performance.now() - startedAt),
+              units: slides.length,
+              styled: true,
+              outline: outline
+            });
+            startedAt = 0;
+          });
         });
-        startedAt = 0;
       }, 400);
     });
     observer.observe(stage, { childList: true, subtree: true });
@@ -78,6 +83,7 @@
 
   function render(bytes) {
     startedAt = performance.now();
+    stage.style.visibility = 'hidden';
 
     const input = document.createElement('input');
     input.type = 'file';

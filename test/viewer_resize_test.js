@@ -58,7 +58,7 @@ test('PPTX slide refits after the WebView grows from 1 to 300 pixels', async () 
     textContent: 'Title',
     setAttribute() {},
   };
-  const stage = { querySelectorAll: () => [slide] };
+  const stage = { style: {}, querySelectorAll: () => [slide] };
   const extras = {};
   const viewer = loadViewer('pptx', stage, extras);
   await viewer.render(new Uint8Array());
@@ -71,6 +71,36 @@ test('PPTX slide refits after the WebView grows from 1 to 300 pixels', async () 
   viewer.resize(1200);
   assert.equal(slide.style.transform, '');
   assert.equal(slide.style.marginRight, '');
+});
+
+test('PPTX stays hidden until the scaled layout has painted', async () => {
+  const slide = {
+    offsetWidth: 960,
+    offsetHeight: 540,
+    style: {},
+    textContent: 'Title',
+    setAttribute() {},
+  };
+  const stage = { style: {}, querySelectorAll: () => [slide] };
+  const messages = [];
+  const extras = {
+    sent: (type) => { if (type === 'rendered') messages.push(type); },
+  };
+  const viewer = loadViewer('pptx', stage, extras);
+
+  await viewer.render(new Uint8Array());
+  assert.equal(stage.style.visibility, 'hidden');
+  extras.notify();
+  assert.equal(stage.style.visibility, 'hidden');
+  assert.deepEqual(messages, []);
+
+  viewer.flushFrame();
+  assert.equal(stage.style.visibility, 'hidden');
+  assert.deepEqual(messages, []);
+
+  viewer.flushFrame();
+  assert.equal(stage.style.visibility, 'visible');
+  assert.deepEqual(messages, ['rendered']);
 });
 
 test('DOCX page refits without accumulating the previous scaled height', async () => {

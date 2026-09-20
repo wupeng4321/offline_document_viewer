@@ -3,11 +3,17 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:offline_document_viewer/offline_document_viewer.dart';
+import 'package:offline_document_viewer/src/document_format.dart'
+    show FormatDetector;
 
 Uint8List _fixture(String name) =>
     File('test/fixtures/$name').readAsBytesSync();
 
 void main() {
+  test('recognizes the PowerPoint template extension', () {
+    expect(FormatDetector.fromExtension('template.potx'), DocumentFormat.pptx);
+  });
+
   group('accepts real documents and identifies them from content', () {
     const Map<String, DocumentFormat> cases = <String, DocumentFormat>{
       'sample.pdf': DocumentFormat.pdf,

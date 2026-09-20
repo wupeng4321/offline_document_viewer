@@ -30,7 +30,7 @@ enum DocumentFormat {
 
   /// PowerPoint, rendered by the bundled `PPTXjs` engine.
   pptx(
-    extensions: <String>['pptx', 'pptm'],
+    extensions: <String>['pptx', 'pptm', 'potx'],
     fidelity: FidelityLevel.high,
     family: FormatFamily.powerPoint,
     ooxmlMainPart: 'ppt/presentation.xml',

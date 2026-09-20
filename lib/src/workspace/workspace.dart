@@ -57,29 +57,29 @@ class WorkspaceBuilder {
   /// keeps seeing documents produced by the previous version, which is silent
   /// and very hard to diagnose: the code is fixed, the tests pass, and the
   /// screen still shows the old output.
-  static const int _layoutRevision = 16;
+  static const int _layoutRevision = 17;
 
   /// SheetJS reads `.xls` and `.csv` as well as `.xlsx`, so all three share
   /// one bundle. The style layer simply finds nothing to read in the legacy
   /// formats and falls back to values only.
   static const _EngineBundle _spreadsheetBundle = _EngineBundle(
-      shell: '$_package/assets/viewers/xlsx.html',
-      support: <String>[
-        '$_package/assets/viewers/sheet.css',
-        '$_package/assets/viewers/xlsx.js',
-      ],
-      engine: <String, String>{
-        'engine/jszip3.min.js': '$_package/assets/engines/xlsx/jszip3.min.js',
-        'engine/xlsx.full.min.js':
-            '$_package/assets/engines/xlsx/xlsx.full.min.js',
-        'engine/xlsx-render.js': '$_package/assets/engines/xlsx/xlsx-render.js',
-      },
+    shell: '$_package/assets/viewers/xlsx.html',
+    support: <String>[
+      '$_package/assets/viewers/sheet.css',
+      '$_package/assets/viewers/xlsx.js',
+    ],
+    engine: <String, String>{
+      'engine/jszip3.min.js': '$_package/assets/engines/xlsx/jszip3.min.js',
+      'engine/xlsx.full.min.js':
+          '$_package/assets/engines/xlsx/xlsx.full.min.js',
+      'engine/xlsx-render.js': '$_package/assets/engines/xlsx/xlsx-render.js',
+    },
   );
 
   /// Assets each format needs. `viewer.html` is a fixed name so the bridge has
   /// a single entry point regardless of format.
-  static const Map<DocumentFormat, _EngineBundle> _bundles =
-      <DocumentFormat, _EngineBundle>{
+  static const Map<DocumentFormat, _EngineBundle>
+  _bundles = <DocumentFormat, _EngineBundle>{
     DocumentFormat.xlsx: _spreadsheetBundle,
     DocumentFormat.xls: _spreadsheetBundle,
     DocumentFormat.csv: _spreadsheetBundle,
@@ -109,8 +109,7 @@ class WorkspaceBuilder {
         'engine/nv.d3.min.js': '$_package/assets/engines/pptx/nv.d3.min.js',
         'engine/dingbat.js': '$_package/assets/engines/pptx/dingbat.js',
         'engine/pptxjs.js': '$_package/assets/engines/pptx/pptxjs.js',
-        'engine/divs2slides.js':
-            '$_package/assets/engines/pptx/divs2slides.js',
+        'engine/divs2slides.js': '$_package/assets/engines/pptx/divs2slides.js',
         'engine/pptxjs.css': '$_package/assets/engines/pptx/pptxjs.css',
         'engine/nv.d3.min.css': '$_package/assets/engines/pptx/nv.d3.min.css',
       },
@@ -226,15 +225,18 @@ class WorkspaceBuilder {
   ) async {
     final String body = switch (format) {
       DocumentFormat.rtf => RtfConverter.toHtml(bytes),
-      DocumentFormat.doc =>
-        _paragraphsToHtml(LegacyTextExtractor.extractDoc(bytes)),
-      DocumentFormat.ppt =>
-        _paragraphsToHtml(LegacyTextExtractor.extractPpt(bytes)),
+      DocumentFormat.doc => _paragraphsToHtml(
+        LegacyTextExtractor.extractDoc(bytes),
+      ),
+      DocumentFormat.ppt => _paragraphsToHtml(
+        LegacyTextExtractor.extractPpt(bytes),
+      ),
       _ => '',
     };
 
-    final String shell = await rootBundle
-        .loadString('$_package/assets/viewers/text.html');
+    final String shell = await rootBundle.loadString(
+      '$_package/assets/viewers/text.html',
+    );
     await File('${root.path}/viewer.html').writeAsString(
       shell
           .replaceFirst('__CSP__', _cspFor())
@@ -270,9 +272,8 @@ class WorkspaceBuilder {
 
   static String _paragraphsToHtml(List<String> paragraphs) => paragraphs
       .map(
-        (String line) => '<p>${line.replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')}</p>',
+        (String line) =>
+            '<p>${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>',
       )
       .join();
 
@@ -302,10 +303,9 @@ class WorkspaceBuilder {
   /// The shell is text, so the CSP placeholder is filled while copying.
   Future<void> _copyShell(String assetPath, String targetPath) async {
     final String html = await rootBundle.loadString(assetPath);
-    await File(targetPath).writeAsString(
-      html.replaceFirst('__CSP__', _cspFor()),
-      flush: true,
-    );
+    await File(
+      targetPath,
+    ).writeAsString(html.replaceFirst('__CSP__', _cspFor()), flush: true);
   }
 
   Future<void> _copyAsset(String assetPath, String targetPath) async {
@@ -341,9 +341,7 @@ class WorkspaceBuilder {
         await dir.delete(recursive: true);
         continue;
       }
-      kept.add(
-        _Aged(dir: dir, modified: stat.modified, bytes: _sizeOf(dir)),
-      );
+      kept.add(_Aged(dir: dir, modified: stat.modified, bytes: _sizeOf(dir)));
     }
 
     kept.sort((_Aged a, _Aged b) => b.modified.compareTo(a.modified));
@@ -380,11 +378,7 @@ class _EngineBundle {
 }
 
 class _Aged {
-  const _Aged({
-    required this.dir,
-    required this.modified,
-    required this.bytes,
-  });
+  const _Aged({required this.dir, required this.modified, required this.bytes});
 
   final Directory dir;
   final DateTime modified;
@@ -406,7 +400,8 @@ class BridgeMessage {
     }
     return BridgeMessage(
       decoded['type']! as String,
-      (decoded['payload'] as Map<String, Object?>?) ?? const <String, Object?>{},
+      (decoded['payload'] as Map<String, Object?>?) ??
+          const <String, Object?>{},
     );
   }
 

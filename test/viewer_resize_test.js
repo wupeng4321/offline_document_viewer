@@ -37,6 +37,10 @@ function loadViewer(name, stage, extras = {}) {
   vm.runInNewContext(source, context, { filename: `${name}.js` });
   return {
     render,
+    flushFrame() {
+      assert.ok(extras.frames?.length, `${name} must have a pending frame`);
+      extras.frames.shift()();
+    },
     resize(width) {
       document.documentElement.clientWidth = width;
       context.window.innerWidth = width;
@@ -70,7 +74,10 @@ test('PPTX slide refits after the WebView grows from 1 to 300 pixels', async () 
 });
 
 test('DOCX page refits without accumulating the previous scaled height', async () => {
-  const page = { offsetWidth: 800 };
+  const page = {
+    offsetWidth: 800,
+    getBoundingClientRect() { return { width: 300 }; },
+  };
   const wrapper = {
     style: {},
     getBoundingClientRect() { return { width: this.offsetWidth }; },
@@ -84,7 +91,11 @@ test('DOCX page refits without accumulating the previous scaled height', async (
     querySelectorAll: (selector) => selector === '.docx-wrapper > section' ? [page] : [],
   };
   const viewer = loadViewer('docx', stage);
-  await viewer.render(new Uint8Array());
+  const rendering = viewer.render(new Uint8Array());
+  await new Promise(setImmediate);
+  viewer.flushFrame();
+  viewer.flushFrame();
+  await rendering;
   assert.equal(wrapper.style.transform, 'scale(0.00125)');
 
   viewer.resize(300);
@@ -95,7 +106,10 @@ test('DOCX page refits without accumulating the previous scaled height', async (
 test('DOCX hides partial content until layout and rendering finish', async () => {
   let finishRender;
   const pendingContent = new Promise((resolve) => { finishRender = resolve; });
-  const page = { offsetWidth: 800 };
+  const page = {
+    offsetWidth: 800,
+    getBoundingClientRect() { return { width: 300 }; },
+  };
   const wrapper = {
     style: {}, offsetWidth: 800, offsetHeight: 1000,
     getBoundingClientRect() { return { width: this.offsetWidth }; },
@@ -127,18 +141,29 @@ test('DOCX hides partial content until layout and rendering finish', async () =>
   assert.deepEqual(messages, []);
 
   finishRender();
+  await new Promise(setImmediate);
+  assert.equal(stage.style.visibility, 'hidden');
+  assert.deepEqual(messages, []);
+  assert.deepEqual(probes.map((probe) => probe.phase), [
+    'render-start', 'render-complete', 'fitted',
+  ]);
+
+  viewer.flushFrame();
+  assert.equal(stage.style.visibility, 'hidden');
+  assert.deepEqual(messages, []);
+
+  viewer.flushFrame();
   await rendering;
   assert.equal(stage.style.visibility, 'visible');
   assert.deepEqual(messages, ['rendered']);
-  assert.deepEqual(probes.map((probe) => probe.phase), [
-    'render-start', 'render-complete', 'fitted', 'visible',
+  assert.deepEqual(probes.slice(-3).map((probe) => probe.phase), [
+    'paint-frame-1', 'paint-frame-2', 'visible',
   ]);
 
-  extras.frames.shift()();
-  extras.frames.shift()();
   viewer.resize(300);
-  assert.deepEqual(probes.slice(-4).map((probe) => probe.phase), [
-    'paint-frame-1', 'paint-frame-2', 'resize-before', 'resize-after',
+  assert.deepEqual(probes.slice(-5).map((probe) => probe.phase), [
+    'paint-frame-1', 'paint-frame-2', 'visible', 'resize-before', 'resize-after',
   ]);
   assert.equal(probes.at(-1).clientWidth, 300);
+  assert.equal(probes.at(-1).pageVisualWidth, 300);
 });

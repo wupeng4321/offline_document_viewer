@@ -14,6 +14,7 @@
     const page = stage.querySelector('.docx-wrapper > section');
     const stageRect = stage.getBoundingClientRect();
     const wrapperRect = wrapper && wrapper.getBoundingClientRect();
+    const pageRect = page && page.getBoundingClientRect();
     Bridge.send('layoutProbe', {
       phase: phase,
       ms: Math.round(performance.now()),
@@ -24,6 +25,7 @@
       wrapperWidth: wrapper ? wrapper.offsetWidth : null,
       wrapperHeight: wrapper ? wrapper.offsetHeight : null,
       visualWidth: wrapperRect ? Math.round(wrapperRect.width) : null,
+      pageVisualWidth: pageRect ? Math.round(pageRect.width) : null,
       pageWidth: page ? page.offsetWidth : null,
       transform: wrapper ? wrapper.style.transform : null,
       styleWidth: wrapper ? wrapper.style.width : null,
@@ -101,14 +103,17 @@
     fitToWidth();
     probe('fitted');
     const outline = collectOutline();
-    stage.style.visibility = 'visible';
-    probe('visible');
-    requestAnimationFrame(function () {
-      probe('paint-frame-1');
+    await new Promise(function (resolve) {
       requestAnimationFrame(function () {
-        probe('paint-frame-2');
+        probe('paint-frame-1');
+        requestAnimationFrame(function () {
+          probe('paint-frame-2');
+          resolve();
+        });
       });
     });
+    stage.style.visibility = 'visible';
+    probe('visible');
 
     Bridge.send('rendered', {
       ms: Math.round(performance.now() - started),

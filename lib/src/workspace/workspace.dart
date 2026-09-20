@@ -57,7 +57,7 @@ class WorkspaceBuilder {
   /// keeps seeing documents produced by the previous version, which is silent
   /// and very hard to diagnose: the code is fixed, the tests pass, and the
   /// screen still shows the old output.
-  static const int _layoutRevision = 17;
+  static const int _layoutRevision = 18;
 
   /// SheetJS reads `.xls` and `.csv` as well as `.xlsx`, so all three share
   /// one bundle. The style layer simply finds nothing to read in the legacy
@@ -223,17 +223,17 @@ class WorkspaceBuilder {
     DocumentFormat format,
     Uint8List bytes,
   ) async {
+    final List<String>? paragraphs = switch (format) {
+      DocumentFormat.doc => LegacyTextExtractor.extractDoc(bytes),
+      DocumentFormat.ppt => LegacyTextExtractor.extractPpt(bytes),
+      _ => null,
+    };
     final String body = switch (format) {
       DocumentFormat.rtf => RtfConverter.toHtml(bytes),
-      DocumentFormat.doc => _paragraphsToHtml(
-        LegacyTextExtractor.extractDoc(bytes),
-      ),
-      DocumentFormat.ppt => _paragraphsToHtml(
-        LegacyTextExtractor.extractPpt(bytes),
-      ),
+      DocumentFormat.doc ||
+      DocumentFormat.ppt => _paragraphsToHtml(paragraphs!),
       _ => '',
     };
-
     final String shell = await rootBundle.loadString(
       '$_package/assets/viewers/text.html',
     );

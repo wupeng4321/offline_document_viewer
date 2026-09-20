@@ -16,18 +16,20 @@ function loadViewer(name, stage, extras = {}) {
   const context = {
     document,
     window: {
+      innerWidth: 1,
       addEventListener: (name, handler) => events.set(name, handler),
       jQuery: () => ({ pptxToHtml() {} }),
     },
-    Bridge: { on() {}, send() {}, start: (callback) => { render = callback; } },
+    Bridge: { on() {}, send: (type, payload) => extras.sent?.(type, payload), start: (callback) => { render = callback; } },
     performance: { now: () => 100 },
+    requestAnimationFrame: (callback) => { (extras.frames ||= []).push(callback); },
     MutationObserver: class { constructor(callback) { extras.notify = callback; } observe() {} },
     setTimeout: (callback) => { callback(); return 1; },
     clearTimeout() {},
     DataTransfer: class { constructor() { this.items = { add() {} }; this.files = []; } },
     File: class {},
     Event: class {},
-    docx: { async renderAsync() {} },
+    docx: extras.docx || { async renderAsync() {} },
   };
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'assets', 'viewers', `${name}.js`), 'utf8',
@@ -37,6 +39,7 @@ function loadViewer(name, stage, extras = {}) {
     render,
     resize(width) {
       document.documentElement.clientWidth = width;
+      context.window.innerWidth = width;
       assert.ok(events.has('resize'), `${name} must respond to viewport resize`);
       events.get('resize')();
     },
@@ -70,9 +73,13 @@ test('DOCX page refits without accumulating the previous scaled height', async (
   const page = { offsetWidth: 800 };
   const wrapper = {
     style: {},
+    getBoundingClientRect() { return { width: this.offsetWidth }; },
+    offsetWidth: 800,
     get offsetHeight() { return parseFloat(this.style.height) || 1000; },
   };
   const stage = {
+    style: {},
+    getBoundingClientRect() { return { width: 300, height: 400 }; },
     querySelector: (selector) => selector === '.docx-wrapper' ? wrapper : page,
     querySelectorAll: (selector) => selector === '.docx-wrapper > section' ? [page] : [],
   };
@@ -83,4 +90,55 @@ test('DOCX page refits without accumulating the previous scaled height', async (
   viewer.resize(300);
   assert.equal(wrapper.style.transform, 'scale(0.375)');
   assert.equal(wrapper.style.height, '375px');
+});
+
+test('DOCX hides partial content until layout and rendering finish', async () => {
+  let finishRender;
+  const pendingContent = new Promise((resolve) => { finishRender = resolve; });
+  const page = { offsetWidth: 800 };
+  const wrapper = {
+    style: {}, offsetWidth: 800, offsetHeight: 1000,
+    getBoundingClientRect() { return { width: this.offsetWidth }; },
+  };
+  const stage = {
+    style: {},
+    innerHTML: '',
+    getBoundingClientRect() { return { width: 300, height: 400 }; },
+    querySelector: (selector) => selector === '.docx-wrapper' ? wrapper : page,
+    querySelectorAll: (selector) => selector === '.docx-wrapper > section' ? [page] : [],
+  };
+  const messages = [];
+  const probes = [];
+  const extras = {
+    sent: (type, payload) => {
+      if (type === 'rendered') messages.push(type);
+      if (type === 'layoutProbe') probes.push(payload);
+    },
+    docx: { async renderAsync() {
+      stage.innerHTML = '<section>partial document</section>';
+      await pendingContent;
+    } },
+  };
+  const viewer = loadViewer('docx', stage, extras);
+
+  const rendering = viewer.render(new Uint8Array());
+  assert.equal(stage.style.visibility, 'hidden');
+  assert.equal(stage.innerHTML, '<section>partial document</section>');
+  assert.deepEqual(messages, []);
+
+  finishRender();
+  await rendering;
+  assert.equal(stage.style.visibility, 'visible');
+  assert.deepEqual(messages, ['rendered']);
+  assert.deepEqual(probes.map((probe) => probe.phase), [
+    'render-start', 'render-complete', 'fitted', 'visible',
+  ]);
+
+  extras.frames.shift()();
+  extras.frames.shift()();
+  viewer.resize(300);
+  assert.deepEqual(probes.slice(-4).map((probe) => probe.phase), [
+    'paint-frame-1', 'paint-frame-2', 'resize-before', 'resize-after',
+  ]);
+  assert.equal(probes.at(-1).clientWidth, 300);
 });

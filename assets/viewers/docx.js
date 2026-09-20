@@ -7,6 +7,29 @@
   'use strict';
 
   const stage = document.getElementById('stage');
+  let resizeProbes = 0;
+
+  function probe(phase) {
+    const wrapper = stage.querySelector('.docx-wrapper');
+    const page = stage.querySelector('.docx-wrapper > section');
+    const stageRect = stage.getBoundingClientRect();
+    const wrapperRect = wrapper && wrapper.getBoundingClientRect();
+    Bridge.send('layoutProbe', {
+      phase: phase,
+      ms: Math.round(performance.now()),
+      viewportWidth: window.innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      stageWidth: Math.round(stageRect.width),
+      stageHeight: Math.round(stageRect.height),
+      wrapperWidth: wrapper ? wrapper.offsetWidth : null,
+      wrapperHeight: wrapper ? wrapper.offsetHeight : null,
+      visualWidth: wrapperRect ? Math.round(wrapperRect.width) : null,
+      pageWidth: page ? page.offsetWidth : null,
+      transform: wrapper ? wrapper.style.transform : null,
+      styleWidth: wrapper ? wrapper.style.width : null,
+      visibility: stage.style.visibility
+    });
+  }
 
   /* Word sayfası sabit genişlikte (A4 ≈ 794 px); telefon ekranı ~390 px.
      Ölçekleyerek sığdırıyoruz — yatay kaydırma bir belge okuyucuda kabul
@@ -57,7 +80,9 @@
 
   async function render(bytes) {
     const started = performance.now();
+    stage.style.visibility = 'hidden';
     stage.innerHTML = '';
+    probe('render-start');
 
     await docx.renderAsync(bytes, stage, null, {
       className: 'docx',
@@ -72,8 +97,18 @@
       renderFootnotes: true
     });
 
+    probe('render-complete');
     fitToWidth();
+    probe('fitted');
     const outline = collectOutline();
+    stage.style.visibility = 'visible';
+    probe('visible');
+    requestAnimationFrame(function () {
+      probe('paint-frame-1');
+      requestAnimationFrame(function () {
+        probe('paint-frame-2');
+      });
+    });
 
     Bridge.send('rendered', {
       ms: Math.round(performance.now() - started),
@@ -144,7 +179,12 @@
     Bridge.send('searchResult', { hits: hits });
   });
 
-  window.addEventListener('resize', fitToWidth);
+  window.addEventListener('resize', function () {
+    const logResize = resizeProbes++ < 3;
+    if (logResize) probe('resize-before');
+    fitToWidth();
+    if (logResize) probe('resize-after');
+  });
 
   Bridge.start(render);
 })();

@@ -43,6 +43,16 @@ void main() {
     }
   });
 
+  test('only the DOCX shell hides its stage while rendering', () {
+    final String docx = File('assets/viewers/docx.html').readAsStringSync();
+    final String text = File('assets/viewers/text.html').readAsStringSync();
+    final String css = File('assets/viewers/page.css').readAsStringSync();
+
+    expect(docx, contains('class="stage docx-stage"'));
+    expect(text, isNot(contains('docx-stage')));
+    expect(css, contains('.stage.docx-stage { visibility: hidden; }'));
+  });
+
   test('PPTX relationships support absolute and relative targets', () {
     final String source = File(
       'assets/engines/pptx/pptxjs.js',

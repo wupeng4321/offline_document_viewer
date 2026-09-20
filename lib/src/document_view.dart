@@ -191,6 +191,7 @@ class _DocumentViewState extends State<DocumentView> {
         return;
       }
       setState(() => _workspace = workspace);
+      _logPreviewSize('workspace-ready');
       _controller.reportStatus(DocumentViewStatus.rendering);
       _timeout = Timer(widget.renderTimeout, () {
         if (mounted && !_rendered) {
@@ -218,6 +219,20 @@ class _DocumentViewState extends State<DocumentView> {
     widget.onReady?.call(info);
   }
 
+  void _logPreviewSize(String phase) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final RenderObject? object = context.findRenderObject();
+      final Size? size = object is RenderBox && object.hasSize
+          ? object.size
+          : null;
+      debugPrint(
+        '[DEBUG-doc-layout] flutter phase=$phase size=$size '
+        'format=${_format?.name} elapsedMs=${_clock?.elapsedMilliseconds}',
+      );
+    });
+  }
+
   Future<void> _onBridgeMessage(List<dynamic> args) async {
     if (args.isEmpty) {
       return;
@@ -238,6 +253,7 @@ class _DocumentViewState extends State<DocumentView> {
           return;
         }
         setState(() => _rendered = true);
+        _logPreviewSize('rendered');
         _reportReady(
           unitCount: (message.payload['units'] as int?) ?? 0,
           outline:
@@ -247,6 +263,9 @@ class _DocumentViewState extends State<DocumentView> {
                   .toList(),
           truncated: (message.payload['truncated'] as bool?) ?? false,
         );
+
+      case 'layoutProbe':
+        debugPrint('[DEBUG-doc-layout] web ${message.payload}');
 
       case 'located':
         _controller.reportPosition((message.payload['index'] as int?) ?? 0);
@@ -333,6 +352,7 @@ class _DocumentViewState extends State<DocumentView> {
       initialSettings: ViewerBridge.settingsFor(workspace),
       onWebViewCreated: (InAppWebViewController controller) {
         _webView = controller;
+        _logPreviewSize('webview-created');
         controller.addJavaScriptHandler(
           handlerName: ViewerBridge.channelName,
           callback: _onBridgeMessage,

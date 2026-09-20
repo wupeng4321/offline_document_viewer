@@ -75,7 +75,11 @@ class CompoundFile {
     for (int n = 0; n < difatCount && difat != _endOfChain; n++) {
       final int base = offsetOf(difat);
       final int perSector = sectorSize ~/ 4 - 1;
-      for (int i = 0; i < perSector; i++) {
+      for (
+        int i = 0;
+        i < perSector && fatSectors.length < fatSectorCount;
+        i++
+      ) {
         final int sector = view.getUint32(base + i * 4, Endian.little);
         if (sector != _freeSector) {
           fatSectors.add(sector);
